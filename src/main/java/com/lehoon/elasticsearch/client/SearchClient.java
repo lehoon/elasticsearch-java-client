@@ -3,6 +3,7 @@ package com.lehoon.elasticsearch.client;
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.query_dsl.TermQuery;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
@@ -20,9 +21,11 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * <p>Title: es search client</p>
@@ -37,6 +40,8 @@ public class SearchClient {
     private RestClient restClient = null;
     //es search client
     private ElasticsearchClient client = null;
+    //search response last _id
+    private String lastId;
 
     //初始化es client对象
     public void init(final String hostName, final int port) throws IOException {
@@ -54,22 +59,41 @@ public class SearchClient {
     }
 
     public static void main(String args[]) throws IOException {
-        SearchClient searchApp = new SearchClient();
+        SearchClient searchClient = new SearchClient();
         //初始化es查询客户端对象
-        searchApp.init("192.168.1.58", 9200);
-        System.out.println("checkClusterRunning=" + searchApp.checkClusterRunning());
-        System.out.println("searchCount=" + searchApp.searchCount("", ""));
+        searchClient.init("192.168.1.58", 9200);
+        System.out.println("checkClusterRunning=" + searchClient.checkClusterRunning());
+        System.out.println("searchCount=" + searchClient.searchCount("", ""));
 
         System.out.println("写入数据开始============");
-        searchApp.batchPushDepthData(1000000);
+        //searchClient.batchPushDepthData(1000000);
         System.out.println("写入数据结束============");
 
         //根据symbol查询符合条件的数量
-        //long count = searchApp.searchCount("finesys_depth01", "typename");
+        //long count = searchClient.searchCount("finesys_depth01", "typename");
         //System.out.println("查询符合条件的数量=" + count);
         //根据symbol查询第一条数据
-        //searchApp.searchBySymbolFirst("ag2204");
-        searchApp.shutdown();
+        //searchClient.searchBySymbolFirst("ag2204");
+
+        //分页查询--------------------begin--------------------------
+        final String indexName = "finesys_depth01";
+        final String symbol = "ag2204";
+        final String market = "SH";
+        final String type = "KLine_30sec";
+        final String beginTime = "2022-06-22 10:58:05.527";
+        final String endTime = "2022-06-22 11:58:05.527";
+        int page = 0;
+        int size = 10;
+
+        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        page++;
+        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        page++;
+        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        page++;
+        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        //分页查询--------------------end----------------------------
+        searchClient.shutdown();
     }
 
     //检查es集群是否运行状态
@@ -181,10 +205,126 @@ public class SearchClient {
                                              final String beginTime,
                                              final String endTime,
                                              final int page,
-                                             final int size) {
+                                             final int size) throws IOException {
 
+        //根据created排序
+        SearchRequest searchRequest = makeSearchRequest(indexName, symbol, market, type, beginTime, endTime, page, size);
+        return searchFromEs(searchRequest);
+    }
 
-        return null;
+    /**
+     * 分页查询
+     */
+    public List<DepthModel> searchDepathPageWithSearchAfter(final String indexName,
+                                             final String symbol,
+                                             final String market,
+                                             final String type,
+                                             final String beginTime,
+                                             final String endTime,
+                                             final int page,
+                                             final int size,
+                                             final String searchAfter) throws IOException {
+
+        //根据created排序
+        SearchRequest searchRequest = makeSearchRequestWithSearchAfter(indexName, symbol, market, type, beginTime, endTime, lastId, size);
+        System.out.println("search page with searchafter.");
+        return searchFromEs(searchRequest);
+    }
+
+    private List<DepthModel> searchFromEs(final SearchRequest request) throws IOException {
+        SearchResponse<DepthModel> response = client.search(request, DepthModel.class);
+        System.out.println("search page with searchafter result count is " + response.hits().hits().size());
+
+        if (response.hits().hits().size() > 0) {
+            List<Hit<DepthModel>> hits = response.hits().hits();
+            lastId = hits.get(hits.size() - 1).id();
+            return hits.stream().map((e) -> e.source()).collect(Collectors.toList());
+        }
+
+        return new ArrayList<DepthModel>();
+    }
+
+    /**
+     * 分页查询数据
+     * @param indexName
+     * @param symbol
+     * @param market
+     * @param type
+     * @param beginTime
+     * @param endTime
+     * @param page
+     * @param size
+     * @return
+     */
+    private SearchRequest makeSearchRequest(final String indexName,
+                                            final String symbol,
+                                            final String market,
+                                            final String type,
+                                            final String beginTime,
+                                            final String endTime,
+                                            final int page,
+                                            final int size) {
+        //转换开始时间long类型
+        final long begineCreated = DateUtils.fromStringFormat(beginTime);
+        //结束时间到long类型
+        final long endCreated = DateUtils.fromStringFormat(endTime);
+        //request builder instance
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(m1 -> m1.range(c1 -> c1.field("created").gte(JsonData.of(begineCreated)).lte(JsonData.of(endCreated))))
+                        .must(m2 -> m2.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))
+                        .must(m -> m.term(m1 -> m1.field("market").value(v -> v.stringValue(market))))
+                        .must(s -> s.term(t1 -> t1.field("type").value(v -> v.stringValue(type))))
+                        ))
+                .from(page == 0 ? 0 : page * size)
+                .size(size)
+                //.searchAfter("")
+        ;
+
+        return requestBuilder.build();
+    }
+
+    //根据searchAfter查询分页数据
+    private SearchRequest makeSearchRequestWithSearchAfter(final String indexName,
+                                            final String symbol,
+                                            final String market,
+                                            final String type,
+                                            final String beginTime,
+                                            final String endTime,
+                                            final String searchAfter,
+                                            final int size) {
+        //转换开始时间long类型
+        final long begineCreated = DateUtils.fromStringFormat(beginTime);
+        //结束时间到long类型
+        final long endCreated = DateUtils.fromStringFormat(endTime);
+        //request builder instance
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(m1 -> m1.range(c1 -> c1.field("created").gte(JsonData.of(begineCreated)).lte(JsonData.of(endCreated))))
+                        .must(m2 -> m2.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))
+                        .must(m -> m.term(m1 -> m1.field("market").value(v -> v.stringValue(market))))
+                        .must(s -> s.term(t1 -> t1.field("type").value(v -> v.stringValue(type))))
+                ))
+                .from(0)
+                .size(size)
+                .searchAfter(searchAfter)
+        ;
+
+        return requestBuilder.build();
+    }
+
+    //多个type查询 返回termquery条件
+    private List<TermQuery> queryByTypes(final List<String> typeList) {
+        TermQuery.Builder builder = new TermQuery.Builder();
+        List<TermQuery> queryList = new ArrayList<TermQuery>(typeList.size());
+        for (String type : typeList) {
+            queryList.add(builder.field("type").value(s -> s.stringValue(type)).build());
+        }
+        return queryList;
     }
 
     /**
@@ -287,7 +427,7 @@ public class SearchClient {
                         .sort(s1 -> s1.field( f -> f.field("created").order(SortOrder.Asc)))
                         //.scroll(t -> t.offset(0))
                         .from(0)   //offset
-                        .size(10000)   //size
+                        .size(10)   //size
                         .query(q -> q.bool( t -> t
                             .must(q1 -> q1.range(t1 -> t1.field("created").gte(JsonData.of(begineCreated)).lte(JsonData.of(endCreated)))) //时间区间
                             .must(ss -> ss.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))   //symbol=symbol
@@ -299,7 +439,9 @@ public class SearchClient {
             List<Hit<DepthModel>> hits = response.hits().hits();
 
             for (Hit<DepthModel> hit : hits) {
+                System.out.println("hit.id()======" + hit.id());
                 System.out.println(hit.source());//拿到数据
+                //DepthModel depthModel = hit.source();
             }
         }
 
