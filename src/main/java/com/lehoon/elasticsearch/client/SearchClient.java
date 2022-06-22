@@ -76,6 +76,20 @@ public class SearchClient {
         //searchClient.searchBySymbolFirst("ag2204");
 
         //分页查询--------------------begin--------------------------
+        //searchClient.testQueryPage();
+        //分页查询--------------------end----------------------------
+
+        //深度分页查询--------------------begin--------------------------
+        searchClient.testQueryPageSearchAfter();
+        //深度分页查询--------------------end--------------------------
+
+        searchClient.shutdown();
+    }
+
+    public void testQueryPage() throws IOException {
+        //查询汇总结果对象
+        List<DepthModel> resultList = new ArrayList<DepthModel>(40);
+        //分页查询--------------------begin--------------------------
         final String indexName = "finesys_depth01";
         final String symbol = "ag2204";
         final String market = "SH";
@@ -84,16 +98,65 @@ public class SearchClient {
         final String endTime = "2022-06-22 11:58:05.527";
         int page = 0;
         int size = 10;
+        List<DepthModel> dataList = searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        page++;
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
 
-        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        dataList = searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
         page++;
-        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
+
+        dataList = searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
         page++;
-        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
-        page++;
-        searchClient.searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
+
+        dataList = searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        resultList.addAll(dataList);
         //分页查询--------------------end----------------------------
-        searchClient.shutdown();
+
+        System.out.println("lastId is " + getLastId());
+        for (DepthModel depthModel : resultList) {
+            System.out.println("depth object is " + depthModel.getTime());
+        }
+    }
+
+    public void testQueryPageSearchAfter() throws IOException {
+        //查询汇总结果对象
+        List<DepthModel> resultList = new ArrayList<DepthModel>(40);
+        //分页查询--------------------begin--------------------------
+        final String indexName = "finesys_depth01";
+        final String symbol = "ag2204";
+        final String market = "SH";
+        final String type = "KLine_30sec";
+        final String beginTime = "2022-06-22 10:58:05.527";
+        final String endTime = "2022-06-22 11:58:05.527";
+        int page = 0;
+        int size = 10;
+        //深度分页查询--------------------begin--------------------------
+        List<DepthModel> dataList = searchDepathPage(indexName, symbol, market, type, beginTime, endTime, page, size);
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
+
+        dataList = searchDepathPageWithSearchAfter(indexName, symbol, market, type, beginTime, endTime, getLastId(), size);
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
+
+        dataList = searchDepathPageWithSearchAfter(indexName, symbol, market, type, beginTime, endTime, getLastId(), size);
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
+
+        dataList = searchDepathPageWithSearchAfter(indexName, symbol, market, type, beginTime, endTime, getLastId(), size);
+        resultList.addAll(dataList);
+        System.out.println("lastId is " + getLastId());
+        //深度分页查询--------------------end----------------------------
+
+        System.out.println("lastId is " + getLastId());
+        for (DepthModel depthModel : resultList) {
+            System.out.println("depth object is " + depthModel.getTime());
+        }
     }
 
     //检查es集群是否运行状态
@@ -221,9 +284,8 @@ public class SearchClient {
                                              final String type,
                                              final String beginTime,
                                              final String endTime,
-                                             final int page,
-                                             final int size,
-                                             final String searchAfter) throws IOException {
+                                             final String searchAfter,
+                                             final int size) throws IOException {
 
         //根据created排序
         SearchRequest searchRequest = makeSearchRequestWithSearchAfter(indexName, symbol, market, type, beginTime, endTime, lastId, size);
@@ -237,7 +299,8 @@ public class SearchClient {
 
         if (response.hits().hits().size() > 0) {
             List<Hit<DepthModel>> hits = response.hits().hits();
-            lastId = hits.get(hits.size() - 1).id();
+            DepthModel lastDepth = hits.get(hits.size() - 1).source();
+            lastId = String.valueOf(lastDepth.getCreated().getTime());
             return hits.stream().map((e) -> e.source()).collect(Collectors.toList());
         }
 
@@ -279,9 +342,7 @@ public class SearchClient {
                         .must(s -> s.term(t1 -> t1.field("type").value(v -> v.stringValue(type))))
                         ))
                 .from(page == 0 ? 0 : page * size)
-                .size(size)
-                //.searchAfter("")
-        ;
+                .size(size);
 
         return requestBuilder.build();
     }
@@ -461,5 +522,9 @@ public class SearchClient {
 
     public ElasticsearchClient getClient() {
         return client;
+    }
+
+    public String getLastId() {
+        return lastId;
     }
 }
