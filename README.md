@@ -100,8 +100,8 @@ Elasticsearch java client api 使用样例
 ```
 
 ## 使用说明
-EsDepthClient.java 多个字段属性单一条件查询,转换成sql比如: where a='' and b = '' and c='' order by created asc limit size;
-EsDepthMutiTypeClient.java 多个字段属性中包括多条件查询,转换成sql比如:where a='' and b = '' and (c='0' or c = '1' or c = '2') order by created asc limit size;
+    * EsDepthClient.java 多个字段属性单一条件查询,转换成sql比如: where a='' and b = '' and c='' order by created asc limit size;
+    * EsDepthMutiTypeClient.java 多个字段属性中包括多条件查询,转换成sql比如:where a='' and b = '' and (c='0' or c = '1' or c = '2') order by created asc limit size;
 
 ### 方法说明
 ```java
