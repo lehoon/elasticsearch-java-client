@@ -14,6 +14,7 @@ import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.apama.marketdata.Depth;
 import com.apama.marketdata.DepthBuilder;
+import com.lehoon.elasticsearch.client.client.EsDepthMutiTypeClient;
 import com.lehoon.elasticsearch.client.domain.DepthModel;
 import com.lehoon.elasticsearch.client.utils.DateUtils;
 import com.lehoon.elasticsearch.client.utils.JacksonMapper;
@@ -63,7 +64,6 @@ public class SearchClient {
         //初始化es查询客户端对象
         searchClient.init("192.168.1.58", 9200);
         System.out.println("checkClusterRunning=" + searchClient.checkClusterRunning());
-        System.out.println("searchCount=" + searchClient.searchCount("", ""));
 
         System.out.println("写入数据开始============");
         //searchClient.batchPushDepthData(1000000);
@@ -75,15 +75,54 @@ public class SearchClient {
         //根据symbol查询第一条数据
         //searchClient.searchBySymbolFirst("ag2204");
 
+        /////////////////////////统计数量//////////////////
+        //searchClient.testCount();
+        /////////////////////////统计数量//////////////////
+
         //分页查询--------------------begin--------------------------
         //searchClient.testQueryPage();
         //分页查询--------------------end----------------------------
 
         //深度分页查询--------------------begin--------------------------
-        searchClient.testQueryPageSearchAfter();
+        //searchClient.testQueryPageSearchAfter();
         //深度分页查询--------------------end--------------------------
 
+
+        EsDepthMutiTypeClient depthClient = new EsDepthMutiTypeClient(searchClient.getClient());
+        depthClient.setIndexName("finesys_depth01");
+        depthClient.setSymbol("ag2204");
+        depthClient.setMarket("SH");
+        depthClient.setTypes(new String[] { "KLine_30sec", "KLine_5min", "KLine_1hour" });
+        depthClient.setBeginTime("2022-06-22 10:58:05.527");
+        depthClient.setEndTime("2022-06-22 11:58:05.527");
+
+        int page = 1;
+        long count = depthClient.count();
+        System.out.println("count is " + depthClient.count());
+
+        while (count <= 0) {
+            List<DepthModel> dataList = depthClient.searchPage(page, 100);
+            for (DepthModel depth : dataList) {
+                System.out.println(depth.getSymbol() + "<----->" + depth.getType() + "<----->" + depth.getTime());
+            }
+
+            page++;
+            count -= page * 100;
+        }
+
+
         searchClient.shutdown();
+    }
+
+    public void testCount() throws IOException {
+        final String indexName = "finesys_depth01";
+        final String symbol = "ag2204";
+        final String market = "SH";
+        final String type = "KLine_30sec";
+        final String beginTime = "2022-06-22 10:58:05.527";
+        final String endTime = "2022-06-22 11:58:05.527";
+        long count = searchCount(indexName, symbol, market, type, beginTime, endTime);
+        System.out.println("searchCount=" + count);
     }
 
     public void testQueryPage() throws IOException {
@@ -230,28 +269,23 @@ public class SearchClient {
     }
 
     //查询符合添加的数据数量
-    public long searchCount(final String indexName, final String typeName) throws IOException {
-        //开始时间
-        final String begineTime = "2022-06-21 15:04:56.188";
-        //结束时间
-        final String endTime = "2022-06-21 15:05:57.188";
-        //market
-        final String market = "SH";
-        //type
-        final String type = "KLine_30sec";
+    public long searchCount(final String indexName,
+                            final String symbol,
+                            final String market,
+                            final String type,
+                            final String beginTime,
+                            final String endTime) throws IOException {
         //转换时间long
-        final long begineCreated = DateUtils.fromStringFormat(begineTime);
+        final long begineCreated = DateUtils.fromStringFormat(beginTime);
         final long endCreated = DateUtils.fromStringFormat(endTime);
-        //symbol
-        final String symbol = "ag2204";
 
         CountResponse response = client.count(c -> c
                 .index(indexName)
                 .query(q -> q.bool( t -> t
                         .must(q1 -> q1.range(t1 -> t1.field("created").gte(JsonData.of(begineCreated)).lte(JsonData.of(endCreated)))) //时间区间
                         .must(ss -> ss.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))   //symbol=symbol
-                //.must(m -> m.term(m1 -> m1.field("market").value(v -> v.stringValue(market))))     //market=martket
-                //.must(ty -> ty.term(t1 -> t1.field("type").value(v -> v.stringValue(type)))) //type=type
+                        .must(m -> m.term(m1 -> m1.field("market").value(v -> v.stringValue(market))))     //market=martket
+                        .must(ty -> ty.term(t1 -> t1.field("type").value(v -> v.stringValue(type)))) //type=type
                 ))
         );
 
