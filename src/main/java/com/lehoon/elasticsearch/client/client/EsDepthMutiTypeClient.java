@@ -172,7 +172,7 @@ public class EsDepthMutiTypeClient {
 
                 .from(page == 0 ? 0 : (page - 1) * size)
                 .size(size);
-        
+
         return requestBuilder.build();
     }
 
