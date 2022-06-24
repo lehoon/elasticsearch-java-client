@@ -1,20 +1,14 @@
-package com.lehoon.elasticsearch.client.client;
+package com.finesys.elasticsearch.client.client;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch.core.*;
-import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
-import com.lehoon.elasticsearch.client.domain.DepthModel;
-import com.lehoon.elasticsearch.client.domain.EsDataModel;
-import com.lehoon.elasticsearch.client.utils.DateUtils;
+import com.finesys.elasticsearch.client.utils.DateUtils;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * <p>Title: 行情数据es客户端</p>
@@ -26,45 +20,34 @@ import java.util.stream.Collectors;
  */
 @Setter
 @Getter
-public class EsDepthClient {
-    private String indexName = null;
+public class EsDepthClient extends AbstractEsDepthClient {
     private String symbol = null;
     private String market = null;
     private String type = null;
     private String beginTime = null;
     private String endTime = null;
-    //search response last _id
-    private String lastId;
     private long longBeginTime = 0l;
     private long longEndTime = 0l;
 
-    //es search client
-    private ElasticsearchClient client = null;
-
     public EsDepthClient(ElasticsearchClient client) {
-        this.client = client;
+        super(client);
     }
 
     public EsDepthClient(String indexName, String symbol, String market, String type,
                          String beginTime, String endTime, ElasticsearchClient client) {
+        super(indexName, client);
         this.indexName = indexName;
         this.symbol = symbol;
         this.market = market;
         this.type = type;
         this.beginTime = beginTime;
         this.endTime = endTime;
-        this.client = client;
         this.longBeginTime = DateUtils.fromStringFormat(beginTime);
         this.longEndTime = DateUtils.fromStringFormat(endTime);
     }
 
-    //是否工作状态
-    public boolean isWorking() throws IOException {
-        if (client == null) return false;
-        return client.ping().value();
-    }
-
     //查询符合条件的数据数量
+    @Override
     public long count() throws IOException {
         CountResponse response = client.count(c -> c
                 .index(indexName)
@@ -79,80 +62,14 @@ public class EsDepthClient {
         return response.count();
     }
 
-    private void updateState(final int page) {
-        if (page == 1) {
-            lastId = "";
-        }
-    }
-
-    public List<DepthModel> searchPage(final int page,
-                                       final int size) throws IOException {
-        int currentPage = page < 1 ? 1 : page;
-        updateState(currentPage);
-
-        if (currentPage == 1) {
-            return searchDefaultPage(currentPage, size);
-        }
-
-        return searchPageWithSearchAfter(size);
-    }
-
-    /**
-     * 分页查询
-     */
-    public List<DepthModel> searchDefaultPage(final int page,
-                                             final int size) throws IOException {
-
-        //根据created排序
-        SearchRequest searchRequest = makeSearchRequest(page, size);
-        return searchFromEs(searchRequest);
-    }
-
-    /**
-     * 分页查询
-     */
-    public List<DepthModel> searchPageWithSearchAfter(final int size) throws IOException {
-        //根据created排序
-        SearchRequest searchRequest = makeSearchRequestWithSearchAfter(size);
-        return searchFromEs(searchRequest);
-    }
-
-    /**
-     * 写入单条数据
-     * @param dataModel
-     * @return
-     * @throws IOException
-     */
-    public boolean pushData(final EsDataModel dataModel) throws IOException {
-        BulkRequest.Builder builder = new BulkRequest.Builder();
-        builder.operations(op -> op
-                .index(idx -> idx
-                        .index("finesys_depth01")
-                        .document(dataModel.getData())
-                        .id(dataModel.getId())));
-
-        BulkResponse response = client.bulk(builder.build());
-        return response.errors();
-    }
-
-    /**
-     * 批量写入数据
-     * @param depthList  数据集合
-     * @throws IOException
-     */
-    public void batchPushData(List<EsDataModel<DepthModel>> depthList) throws IOException {
-        for (EsDataModel depth : depthList) {
-            pushData(depth);
-        }
-    }
-
-    /**
+     /**
      * 分页查询数据
      * @param page
      * @param size
      * @return
      */
-    private SearchRequest makeSearchRequest(final int page,
+     @Override
+     protected SearchRequest makeSearchRequest(final int page,
                                             final int size) {
         //request builder instance
         SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
@@ -171,7 +88,8 @@ public class EsDepthClient {
     }
 
     //根据searchAfter查询分页数据
-    private SearchRequest makeSearchRequestWithSearchAfter(final int size) {
+    @Override
+    protected SearchRequest makeSearchRequestWithSearchAfter(final int size) {
         //request builder instance
         SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
         requestBuilder.index(indexName)
@@ -190,15 +108,14 @@ public class EsDepthClient {
         return requestBuilder.build();
     }
 
-    private List<DepthModel> searchFromEs(final SearchRequest request) throws IOException {
-        SearchResponse<DepthModel> response = client.search(request, DepthModel.class);
-        if (response.hits().hits().size() > 0) {
-            List<Hit<DepthModel>> hits = response.hits().hits();
-            DepthModel lastDepth = hits.get(hits.size() - 1).source();
-            lastId = String.valueOf(lastDepth.getCreated().getTime());
-            return hits.stream().map((e) -> e.source()).collect(Collectors.toList());
-        }
-        return new ArrayList<DepthModel>();
+    public void setBeginTime(String beginTime) {
+        this.beginTime = beginTime;
+        this.longBeginTime = DateUtils.fromStringFormat(beginTime);
+
     }
 
+    public void setEndTime(String endTime) {
+        this.endTime = endTime;
+        this.longEndTime = DateUtils.fromStringFormat(endTime);
+    }
 }

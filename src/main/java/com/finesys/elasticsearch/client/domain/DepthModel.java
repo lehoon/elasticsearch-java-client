@@ -1,4 +1,4 @@
-package com.lehoon.elasticsearch.client.domain;
+package com.finesys.elasticsearch.client.domain;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

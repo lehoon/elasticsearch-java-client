@@ -1,4 +1,4 @@
-package com.lehoon.elasticsearch.client.utils;
+package com.finesys.elasticsearch.client.utils;
 
 import java.text.DateFormat;
 import java.text.ParseException;

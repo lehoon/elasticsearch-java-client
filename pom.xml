@@ -4,7 +4,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.lehoon</groupId>
+  <groupId>org.finesys</groupId>
   <artifactId>elasticsearch-java-client</artifactId>
   <version>1.0</version>
 
@@ -83,7 +83,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>com.lehoon.elasticsearch.client.SearchClient</mainClass>
+              <mainClass>com.finesys.elasticsearch.client.SearchClient</mainClass>
               <addClasspath>true</addClasspath>
               <classpathPrefix>lib/</classpathPrefix>
             </manifest>
