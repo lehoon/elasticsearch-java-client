@@ -280,7 +280,7 @@ public static void main(String args[]) throws IOException {
     ElasticsearchClient client = new ElasticsearchClient(transport);
     
     //初始化一个特定index es client对象
-    EsDepthMutiTypeClient depthClient = new EsDepthMutiTypeClient(searchClient.getClient());
+    EsDepthMutiTypeClient depthClient = new EsDepthMutiTypeClient(client);
     depthClient.setIndexName("finesys_depth01");
     depthClient.setSymbol("ag2204");
     depthClient.setMarket("SH");
