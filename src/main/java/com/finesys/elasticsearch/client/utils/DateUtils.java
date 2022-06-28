@@ -1,6 +1,5 @@
 package com.finesys.elasticsearch.client.utils;
 
-import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -15,13 +14,8 @@ import java.util.Date;
  * <p>Date: 2022/6/20 15:53</p>
  */
 public class DateUtils {
-    private final static SimpleDateFormat sdfYear = new SimpleDateFormat("yyyy");
-
     private final static SimpleDateFormat sdfDay = new SimpleDateFormat(
             "yyyy-MM-dd");
-
-    private final static SimpleDateFormat sdfDays = new SimpleDateFormat(
-            "yyyyMMdd");
 
     private final static SimpleDateFormat sdfTime = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
@@ -33,36 +27,14 @@ public class DateUtils {
             "yyyyMMddHHmmssSSS");
 
     /**
-     * 获取YYYY格式
-     *
-     * @return
-     */
-    public static String getYear() {
-        return sdfYear.format(new Date());
-    }
-
-    /**
      * 获取YYYY-MM-DD格式
-     *
-     * @return
      */
     public static String getDay() {
         return sdfDay.format(new Date());
     }
 
     /**
-     * 获取YYYYMMDD格式
-     *
-     * @return
-     */
-    public static String getDays() {
-        return sdfDays.format(new Date());
-    }
-
-    /**
      * 获取YYYY-MM-DD HH:mm:ss格式
-     *
-     * @return
      */
     public static String getTime() {
         return sdfTime.format(new Date());
@@ -91,168 +63,20 @@ public class DateUtils {
 
     /**
      * YYYY-MM-DD HH:mm:ss格式
-     *
-     * @return
      */
     public static String getFormatTime(Date date) {
         return sdfTime.format(date);
     }
 
-    public static String getDateToString(Date date) {
-        return sdfDays.format(date);
-    }
-
-    /**
-     * @param s
-     * @param e
-     * @return boolean
-     * @throws
-     * @Title: compareDate
-     * @Description: TODO(日期比较 ， 如果s > = e 返回true 否则返回false)
-     * @author luguosui
-     */
-    public static boolean compareDate(String s, String e) {
-        if (fomatDate(s) == null || fomatDate(e) == null) {
-            return false;
-        }
-        return fomatDate(s).getTime() >= fomatDate(e).getTime();
-    }
-
     /**
      * 格式化日期
-     *
-     * @return
      */
     public static Date fomatDate(String date) {
-        DateFormat fmt = new SimpleDateFormat("yyyyMMdd");
         try {
-            return fmt.parse(date);
+            return sdfDay.parse(date);
         } catch (ParseException e) {
-            //log.error(e.getMessage(), e);
             return null;
         }
-    }
-
-    /**
-     * 根据参数格式化日期
-     *
-     * @return
-     */
-    public static Date fomatDate(String date, String type) {
-        try {
-            if ("sdfTime".equals(type)) {
-                return sdfTime.parse(date);
-            } else if ("sdfDay".equals(type)) {
-                return sdfDay.parse(date);
-            } else if ("sdfDays".equals(type)) {
-                return sdfDays.parse(date);
-            } else if ("sdfMilli".equals(type)) {
-                return sdfMilli.parse(date);
-            }
-            return sdfYear.parse(date);
-        } catch (ParseException e) {
-            //log.error(e.getMessage(), e);
-            return null;
-        }
-    }
-
-    /**
-     * 校验日期是否合法
-     *
-     * @return
-     */
-    public static boolean isValidDate(String s) {
-        DateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
-        try {
-            fmt.parse(s);
-            return true;
-        } catch (Exception e) {
-            // 如果throw java.text.ParseException或者NullPointerException，就说明格式不对
-            return false;
-        }
-    }
-
-    public static int getDiffYear(String startTime, String endTime) {
-        DateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
-        try {
-            long aa = 0;
-            int years = (int) (((fmt.parse(endTime).getTime() - fmt.parse(startTime).getTime()) / (1000 * 60 * 60 * 24)) / 365);
-            return years;
-        } catch (Exception e) {
-            // 如果throw java.text.ParseException或者NullPointerException，就说明格式不对
-            return 0;
-        }
-    }
-
-    /**
-     * <li>功能描述：时间相减得到天数
-     *
-     * @param beginDateStr
-     * @param endDateStr
-     * @return long
-     * @author Administrator
-     */
-    public static long getDaySub(String beginDateStr, String endDateStr) {
-        long day = 0;
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        Date beginDate = null;
-        Date endDate = null;
-
-        try {
-            beginDate = format.parse(beginDateStr);
-            endDate = format.parse(endDateStr);
-        } catch (ParseException e) {
-            //log.error(e.getMessage(), e);
-        }
-        day = (endDate.getTime() - beginDate.getTime()) / (24 * 60 * 60 * 1000);
-        //System.out.println("相隔的天数="+day);
-
-        return day;
-    }
-
-    /**
-     * 得到n天之后的日期
-     *
-     * @param days
-     * @return
-     */
-    public static String getAfterDayDate(String days) {
-        int daysInt = Integer.parseInt(days);
-
-        Calendar canlendar = Calendar.getInstance(); // java.util包
-        canlendar.add(Calendar.DATE, daysInt); // 日期减 如果不够减会将月变动
-        Date date = canlendar.getTime();
-
-        SimpleDateFormat sdfd = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String dateStr = sdfd.format(date);
-
-        return dateStr;
-    }
-
-    /**
-     * 得到n天之后是周几
-     *
-     * @param days
-     * @return
-     */
-    public static String getAfterDayWeek(String days) {
-        int daysInt = Integer.parseInt(days);
-
-        Calendar canlendar = Calendar.getInstance(); // java.util包
-        canlendar.add(Calendar.DATE, daysInt); // 日期减 如果不够减会将月变动
-        Date date = canlendar.getTime();
-
-        SimpleDateFormat sdf = new SimpleDateFormat("E");
-        String dateStr = sdf.format(date);
-
-        return dateStr;
-    }
-
-    public static String getHourDateTime(final int hour) {
-        Calendar canlendar = Calendar.getInstance(); // java.util包
-        canlendar.add(Calendar.HOUR, hour);
-        SimpleDateFormat sdfd = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return sdfd.format(canlendar.getTime());
     }
 
     /**
@@ -268,28 +92,67 @@ public class DateUtils {
         return canlendar.getTime();
     }
 
-    /***
-     * @param date  : 时间字符串转换定时任务时间
-     * @return
-     */
-    public static String getCron(Date  date){
-        //String dateFormat="s mm HH * * *";
-        String dateFormat="s mm HH ? * * ";
-        return formatDateByPattern(date, dateFormat);
+    public static long toDayLastTime(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.set(Calendar.HOUR, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.add(Calendar.DAY_OF_MONTH, 1);
+        return calendar.getTime().getTime();
     }
 
-    /***
-     *  修改cron参数格式
-     * @param date
-     * @param dateFormat : e.g:yyyy-MM-dd HH:mm:ss
-     * @return
-     */
-    public static String formatDateByPattern(Date date, String dateFormat){
-        SimpleDateFormat sdf = new SimpleDateFormat(dateFormat);
-        String formatTimeStr = "";
-        if (date != null) {
-            formatTimeStr = sdf.format(date);
+    public static long toDayBeginTime(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.set(Calendar.HOUR, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.add(Calendar.DAY_OF_MONTH, -1);
+        return calendar.getTime().getTime();
+    }
+
+    public static long nextDayZeroTime(final String today) {
+        Date todayDate = fomatDate(today);
+        return toDayLastTime(todayDate);
+    }
+
+    public static long upDayZeroTime(final String today) {
+        Date todayDate = fomatDate(today);
+        return toDayBeginTime(todayDate);
+    }
+
+    public static String nextDay() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DAY_OF_MONTH, 1);
+        calendar.set(Calendar.HOUR, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        return sdfDay.format(calendar.getTime());
+    }
+
+    public static String nextDay(final String currentDay) {
+        Date todayDate = fomatDate(currentDay);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(todayDate);
+        calendar.add(Calendar.DAY_OF_MONTH, 1);
+        calendar.set(Calendar.HOUR, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        return sdfDay.format(calendar.getTime());
+    }
+
+    public static Date formatDepthDate(final String depthTime) {
+        try {
+            return sdfMilli.parse(depthTime);
+        } catch (ParseException e) {
+            return  null;
         }
-        return formatTimeStr;
+    }
+
+    public static long depthTime(final String time) {
+        Date todayDate = formatDepthDate(time);
+        if (todayDate == null) return 0l;
+        return todayDate.getTime();
     }
 }

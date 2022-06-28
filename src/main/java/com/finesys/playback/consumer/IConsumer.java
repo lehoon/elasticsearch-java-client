@@ -11,6 +11,7 @@ import com.finesys.playback.producer.IProducer;
  * <p>Date: 2022/6/24 16:40</p>
  */
 public interface IConsumer<T> {
+    boolean init();
     void producer(IProducer<T> producer);
     void process();
     boolean workDone();

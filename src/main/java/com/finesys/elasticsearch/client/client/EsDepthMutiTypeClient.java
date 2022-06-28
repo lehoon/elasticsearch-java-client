@@ -116,6 +116,26 @@ public class EsDepthMutiTypeClient extends AbstractEsDepthClient {
         return requestBuilder.build();
     }
 
+    @Override
+    protected SearchRequest makeLastOfToDaySearchRequest(final String type, String today) {
+        final long nextDayTime = DateUtils.nextDayZeroTime(today);
+        final long upDayTime = DateUtils.upDayZeroTime(today);
+        //request builder instance
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Desc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(m1 -> m1.range(c1 -> c1.field("created").lt(JsonData.of(nextDayTime)).gt(JsonData.of(upDayTime))))
+                        .must(m2 -> m2.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))
+                        .must(m -> m.term(m1 -> m1.field("market").value(v -> v.stringValue(market))))
+                        .must(s -> s.term(t1 -> t1.field("type").value(v -> v.stringValue(type))))
+                ))
+                .from(0)
+                .size(1);
+
+        return requestBuilder.build();
+    }
+
     //多个type查询 返回termquery条件
     private List<Query> queryByTypes() {
         List<Query> queryList = new ArrayList<Query>(types.length);
@@ -129,11 +149,30 @@ public class EsDepthMutiTypeClient extends AbstractEsDepthClient {
     public void setBeginTime(String beginTime) {
         this.beginTime = beginTime;
         this.longBeginTime = DateUtils.fromStringFormat(beginTime);
-
     }
 
     public void setEndTime(String endTime) {
         this.endTime = endTime;
         this.longEndTime = DateUtils.fromStringFormat(endTime);
+    }
+
+    @Override
+    public String symbol() {
+        return symbol;
+    }
+
+    @Override
+    public String market() {
+        return market;
+    }
+
+    @Override
+    public String beginTime() {
+        return beginTime;
+    }
+
+    @Override
+    public String endTime() {
+        return endTime;
     }
 }

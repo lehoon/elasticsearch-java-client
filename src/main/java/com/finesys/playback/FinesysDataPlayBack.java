@@ -15,8 +15,6 @@ import java.util.concurrent.*;
  * <p>Date: 2022/6/24 16:38</p>
  */
 public final class FinesysDataPlayBack {
-    //thread create factory
-    private ThreadFactory threadNamedThreadFactory = null;
     private ExecutorService playBackThreadPool = null;
 
     private static FinesysDataPlayBack instance = new FinesysDataPlayBack();
@@ -29,7 +27,6 @@ public final class FinesysDataPlayBack {
 
     public boolean submitTask(IProducer producer, IConsumer consumer) {
         if (playBackThreadPool == null) return false;
-        if (threadNamedThreadFactory == null) return false;
         if (producer == null) return false;
         if (consumer == null) return false;
 
@@ -39,10 +36,6 @@ public final class FinesysDataPlayBack {
         } catch (RejectedExecutionException e) {
             return false;
         }
-    }
-
-    public void setThreadNamedThreadFactory(ThreadFactory threadNamedThreadFactory) {
-        this.threadNamedThreadFactory = threadNamedThreadFactory;
     }
 
     public void setPlayBackThreadPool(ExecutorService playBackThreadPool) {

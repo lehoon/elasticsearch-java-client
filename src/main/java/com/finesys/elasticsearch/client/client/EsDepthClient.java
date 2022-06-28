@@ -36,7 +36,6 @@ public class EsDepthClient extends AbstractEsDepthClient {
     public EsDepthClient(String indexName, String symbol, String market, String type,
                          String beginTime, String endTime, ElasticsearchClient client) {
         super(indexName, client);
-        this.indexName = indexName;
         this.symbol = symbol;
         this.market = market;
         this.type = type;
@@ -62,14 +61,14 @@ public class EsDepthClient extends AbstractEsDepthClient {
         return response.count();
     }
 
-     /**
-     * 分页查询数据
-     * @param page
-     * @param size
-     * @return
-     */
-     @Override
-     protected SearchRequest makeSearchRequest(final int page,
+    /**
+    * 分页查询数据
+    * @param page
+    * @param size
+    * @return
+    */
+    @Override
+    protected SearchRequest makeSearchRequest(final int page,
                                             final int size) {
         //request builder instance
         SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
@@ -83,6 +82,27 @@ public class EsDepthClient extends AbstractEsDepthClient {
                 ))
                 .from(page == 0 ? 0 : page * size)
                 .size(size);
+
+        return requestBuilder.build();
+    }
+
+    @Override
+    protected SearchRequest makeLastOfToDaySearchRequest(final String type, String today) {
+        final String typeName = isEmpty(type) ? this.type : type;
+        final long nextDayTime = DateUtils.nextDayZeroTime(today);
+        final long upDayTime = DateUtils.upDayZeroTime(today);
+        //request builder instance
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Desc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(m1 -> m1.range(c1 -> c1.field("created").lt(JsonData.of(nextDayTime)).gt(JsonData.of(upDayTime))))
+                        .must(m2 -> m2.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))
+                        .must(m -> m.term(m1 -> m1.field("market").value(v -> v.stringValue(market))))
+                        .must(s -> s.term(t1 -> t1.field("type").value(v -> v.stringValue(typeName))))
+                ))
+                .from(0)
+                .size(1);
 
         return requestBuilder.build();
     }
@@ -117,5 +137,25 @@ public class EsDepthClient extends AbstractEsDepthClient {
     public void setEndTime(String endTime) {
         this.endTime = endTime;
         this.longEndTime = DateUtils.fromStringFormat(endTime);
+    }
+
+    @Override
+    public String symbol() {
+        return symbol;
+    }
+
+    @Override
+    public String market() {
+        return market;
+    }
+
+    @Override
+    public String beginTime() {
+        return beginTime;
+    }
+
+    @Override
+    public String endTime() {
+        return endTime;
     }
 }

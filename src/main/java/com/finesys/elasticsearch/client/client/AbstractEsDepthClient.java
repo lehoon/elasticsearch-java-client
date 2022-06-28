@@ -59,7 +59,6 @@ public abstract class AbstractEsDepthClient {
         return searchPageWithSearchAfter(size);
     }
 
-
     /**
      * 分页查询
      */
@@ -79,12 +78,25 @@ public abstract class AbstractEsDepthClient {
         return searchFromEs(searchRequest);
     }
 
+    public DepthModel searchLastOfToDay(final String type, final String today) throws IOException {
+        //根据created排序
+        SearchRequest searchRequest = makeLastOfToDaySearchRequest(type, today);
+        List<DepthModel> dataList = searchFromEs(searchRequest);
+        return (dataList == null || dataList.size() == 0) ? null : dataList.get(0);
+    }
+
     public abstract long count() throws IOException;
 
     protected abstract SearchRequest makeSearchRequest(final int page,
                                               final int size);
 
     protected abstract SearchRequest makeSearchRequestWithSearchAfter(final int size);
+
+    /**
+     * @param today   yyyy-mm-dd格式
+     * @return
+     */
+    protected abstract SearchRequest makeLastOfToDaySearchRequest(final String type, final String today);
 
     protected List<DepthModel> searchFromEs(final SearchRequest request) throws IOException {
         SearchResponse<DepthModel> response = client.search(request, DepthModel.class);
@@ -113,23 +125,12 @@ public abstract class AbstractEsDepthClient {
         BulkRequest.Builder builder = new BulkRequest.Builder();
         builder.operations(op -> op
                 .index(idx -> idx
-                        .index("finesys_depth01")
+                        .index(indexName)
                         .document(dataModel.getData())
                         .id(dataModel.getId())));
 
         BulkResponse response = client.bulk(builder.build());
         return response.errors();
-    }
-
-    /**
-     * 批量写入数据
-     * @param depthList  数据集合
-     * @throws IOException
-     */
-    public void batchPushData(List<EsDataModel<DepthModel>> depthList) throws IOException {
-        for (EsDataModel depth : depthList) {
-            pushData(depth);
-        }
     }
 
     public void setLastId(String lastId) {
@@ -143,4 +144,13 @@ public abstract class AbstractEsDepthClient {
     public void setClient(ElasticsearchClient client) {
         this.client = client;
     }
+
+    protected boolean isEmpty(final String source) {
+        return source == null || source.length() == 0;
+    }
+
+    public abstract String symbol();
+    public abstract String market();
+    public abstract String beginTime();
+    public abstract String endTime();
 }
