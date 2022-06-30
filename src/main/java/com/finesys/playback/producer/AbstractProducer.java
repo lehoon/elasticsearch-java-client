@@ -39,6 +39,8 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
     @Override
     public List<DepthModel> next() throws EsReaderException {
         page += 1;
+        readIndex += size;
+
         try {
             return esDepthClient.searchPage(page, size);
         } catch (IOException e) {

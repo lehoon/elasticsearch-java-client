@@ -98,9 +98,8 @@ public class EsDepthMutiTypeClient extends AbstractEsDepthClient {
     @Override
     protected SearchRequest makeSearchRequestWithSearchAfter(final int size) {
         //request builder instance
-        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
-        requestBuilder.index(indexName)
-                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
+        SearchRequest.Builder requestBuilder = searchRequestBuilder();
+        requestBuilder.sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
                 .query(q -> q.bool( q1 -> q1
                         .must(m1 -> m1.range(c1 -> c1.field("created").gte(JsonData.of(longBeginTime)).lte(JsonData.of(longEndTime))))
                         .must(m2 -> m2.term(s1 -> s1.field("symbol").value(v -> v.stringValue(symbol))))

@@ -149,6 +149,11 @@ public abstract class AbstractEsDepthClient {
         return source == null || source.length() == 0;
     }
 
+    protected SearchRequest.Builder searchRequestBuilder() {
+        SearchRequest.Builder builder = new SearchRequest.Builder();
+        builder.index(indexName);
+        return builder;
+    }
     public abstract String symbol();
     public abstract String market();
     public abstract String beginTime();

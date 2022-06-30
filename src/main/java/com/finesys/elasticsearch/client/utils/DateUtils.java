@@ -14,6 +14,9 @@ import java.util.Date;
  * <p>Date: 2022/6/20 15:53</p>
  */
 public class DateUtils {
+    private final static SimpleDateFormat sdfDepthDay = new SimpleDateFormat(
+            "yyyyMMdd");
+
     private final static SimpleDateFormat sdfDay = new SimpleDateFormat(
             "yyyy-MM-dd");
 
@@ -77,6 +80,18 @@ public class DateUtils {
         } catch (ParseException e) {
             return null;
         }
+    }
+
+    public static Date formatDepthPlaybackDate(String date) {
+        try {
+            return sdfDepthDay.parse(date);
+        } catch (ParseException e) {
+            return null;
+        }
+    }
+
+    public static String formatDepthPlaybackDate(Date date) {
+        return sdfMilli.format(date);
     }
 
     /**
@@ -154,5 +169,17 @@ public class DateUtils {
         Date todayDate = formatDepthDate(time);
         if (todayDate == null) return 0l;
         return todayDate.getTime();
+    }
+
+    public static String depthPlaybackBeginTime(final String time) {
+        Date date = formatDepthPlaybackDate(time);
+        if (date == null) return null;
+        return formatDepthPlaybackDate(date);
+    }
+
+    public static String depthPlaybackEndTime(final String time) {
+        Date date = formatDepthPlaybackDate(time);
+        if (date == null) return null;
+        return formatDepthPlaybackDate(date);
     }
 }
