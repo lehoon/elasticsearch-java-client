@@ -157,6 +157,16 @@ public class DateUtils {
         return sdfDay.format(calendar.getTime());
     }
 
+    public static Date nextDay(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(Calendar.DAY_OF_MONTH, 1);
+        calendar.set(Calendar.HOUR, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        return calendar.getTime();
+    }
+
     public static Date formatDepthDate(final String depthTime) {
         try {
             return sdfMilli.parse(depthTime);
@@ -181,5 +191,23 @@ public class DateUtils {
         Date date = formatDepthPlaybackDate(time);
         if (date == null) return null;
         return formatDepthPlaybackDate(date);
+    }
+
+    public static String playbackDateTime(final String time) {
+        Date date = formatDepthDate(time);
+        if (date == null) {
+            date = now();
+        }
+
+        return sdfDay.format(date.getTime());
+    }
+
+    public static String playbackCurrentDateTime(final String dateTime) {
+        Date date = formatDepthPlaybackDate(dateTime);
+        if (date == null) {
+            date = now();
+        }
+
+        return sdfDay.format(date.getTime());
     }
 }

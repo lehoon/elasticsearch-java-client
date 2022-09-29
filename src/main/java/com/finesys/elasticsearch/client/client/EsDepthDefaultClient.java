@@ -9,9 +9,11 @@ import co.elastic.clients.elasticsearch.core.CountResponse;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.json.JsonData;
 import com.finesys.elasticsearch.client.utils.DateUtils;
+import com.finesys.playback.EsReaderException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -39,16 +41,28 @@ public class EsDepthDefaultClient extends AbstractEsDepthClient {
         super(client);
     }
 
-    public EsDepthDefaultClient(String indexName, String [] symbols, String [] markets, String [] types,
-                                 String beginTime, String endTime, ElasticsearchClient client) {
-        super(indexName, client);
+    public EsDepthDefaultClient(String [] symbols, String [] markets, String [] types,
+                                Date beginTime, Date endTime) {
+        super();
         this.symbols = symbols;
         this.markets = markets;
         this.types = types;
-        this.beginTime = beginTime;
-        this.endTime = endTime;
-        this.longBeginTime = DateUtils.fromStringFormat(beginTime);
-        this.longEndTime = DateUtils.fromStringFormat(endTime);
+        this.beginTime = DateUtils.formatDepthPlaybackDate(beginTime);
+        this.endTime = DateUtils.formatDepthPlaybackDate(endTime);
+        this.longBeginTime = beginTime.getTime();
+        this.longEndTime = endTime.getTime();
+    }
+
+    public EsDepthDefaultClient(String indexName, String [] symbols, String [] markets, String [] types,
+                                Date beginTime, Date endTime) {
+        super(indexName);
+        this.symbols = symbols;
+        this.markets = markets;
+        this.types = types;
+        this.beginTime = DateUtils.formatDepthPlaybackDate(beginTime);
+        this.endTime = DateUtils.formatDepthPlaybackDate(endTime);
+        this.longBeginTime = beginTime.getTime();
+        this.longEndTime = endTime.getTime();
     }
 
     @Override
@@ -56,7 +70,9 @@ public class EsDepthDefaultClient extends AbstractEsDepthClient {
         CountRequest.Builder countRequestBuilder = new CountRequest.Builder();
         countRequestBuilder.index(indexName);
         countRequestBuilder.query(q -> q.bool( b -> b
-                .must(q1 -> q1.range(t1 -> t1.field("created").gte(JsonData.of(DateUtils.fromStringFormat(beginTime))).lte(JsonData.of(DateUtils.fromStringFormat(endTime)))))
+                .must(q1 -> q1.range(t1 -> t1.field("created")
+                        .gte(JsonData.of(DateUtils.fromStringFormat(beginTime)))
+                        .lte(JsonData.of(DateUtils.fromStringFormat(endTime)))))
                 .must(s -> s.terms(symbolQuery()))
                 .must(m -> m.terms(marketQuery()))
                 .must(t -> t.terms(typeQuery()))
@@ -66,6 +82,142 @@ public class EsDepthDefaultClient extends AbstractEsDepthClient {
         System.out.println(request.toString());
         CountResponse response = client.count(request);
         return response.count();
+    }
+
+    @Override
+    public long count(String today) throws EsReaderException {
+        Date todayDateTime = DateUtils.fomatDate(today);
+        Date nextDateTime = DateUtils.nextDay(todayDateTime);
+        String begineDateTime = DateUtils.formatDepthPlaybackDate(todayDateTime);
+        String endDateTime = DateUtils.formatDepthPlaybackDate(nextDateTime);
+        if (client == null) throw new EsReaderException("elasticsearch连接已断开");
+        CountRequest.Builder countRequestBuilder = new CountRequest.Builder();
+        countRequestBuilder.index(indexName);
+        countRequestBuilder.query(q -> q.bool( b -> b
+                .must(c1 -> c1.range(t1 -> t1.field("created")
+                        .gt(JsonData.of(DateUtils.fromStringFormat(begineDateTime)))
+                        .lt(JsonData.of(DateUtils.fromStringFormat(endDateTime)))))
+                .must(s -> s.terms(symbolQuery()))
+                .must(m -> m.terms(marketQuery()))
+                .must(t -> t.terms(typeQuery()))
+        ));
+
+        CountRequest request = countRequestBuilder.build();
+        try {
+            CountResponse response = client.count(request);
+            return response.count();
+        } catch (IOException e) {
+            throw new EsReaderException("查询elasticsearch回放数据异常", e);
+        }
+    }
+
+
+    @Override
+    protected SearchRequest makeSearchRequest(int page, int size) {
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
+                .query(q -> q.bool( q1 -> q1
+                                .must(c1 -> c1.range(t1 -> t1.field("created")
+                                .gte(JsonData.of(DateUtils.fromStringFormat(beginTime)))
+                                .lte(JsonData.of(DateUtils.fromStringFormat(endTime)))))                                .must(s -> s.terms(symbolQuery()))
+                                .must(m -> m.terms(marketQuery()))
+                                .must(t -> t.terms(typeQuery()))
+                ))
+                .from(page == 0 ? 0 : (page - 1) * size)
+                .size(size);
+        return requestBuilder.build();
+    }
+
+    @Override
+    protected SearchRequest makeSearchRequestWithSearchAfter(int size) {
+        //request builder instance
+        SearchRequest.Builder requestBuilder = searchRequestBuilder();
+        requestBuilder.sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(c1 -> c1.range(t1 -> t1.field("created")
+                                .gte(JsonData.of(DateUtils.fromStringFormat(beginTime)))
+                                .lte(JsonData.of(DateUtils.fromStringFormat(endTime)))))                          .must(s -> s.terms(symbolQuery()))
+                        .must(m -> m.terms(marketQuery()))
+                        .must(t -> t.terms(typeQuery()))
+                ))
+                .from(0)
+                .size(size)
+                .searchAfter(lastId);
+
+        return requestBuilder.build();
+    }
+
+    @Override
+    protected SearchRequest makeLastOfToDaySearchRequest(String type, String today) {
+        Date todayDateTime = DateUtils.fomatDate(today);
+        Date nextDateTime = DateUtils.nextDay(todayDateTime);
+        String begineDateTime = DateUtils.formatDepthPlaybackDate(todayDateTime);
+        String endDateTime = DateUtils.formatDepthPlaybackDate(nextDateTime);
+
+        //request builder instance
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Desc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(c1 -> c1.range(t1 -> t1.field("created")
+                                .gt(JsonData.of(DateUtils.fromStringFormat(begineDateTime)))
+                                .lt(JsonData.of(DateUtils.fromStringFormat(endDateTime)))))
+                        .must(s -> s.terms(symbolQuery()))
+                        .must(m -> m.terms(marketQuery()))
+                        .must(t -> t.terms(typeQuery()))
+                ))
+                .from(0)
+                .size(1);
+
+        return requestBuilder.build();
+    }
+
+    @Override
+    protected SearchRequest makeLastSearchRequest() {
+        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
+        requestBuilder.index(indexName)
+                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Desc)))
+                .query(q -> q.bool( q1 -> q1
+                        .must(c1 -> c1.range(t1 -> t1.field("created")
+                                .gt(JsonData.of(DateUtils.fromStringFormat(beginTime)))
+                                .lte(JsonData.of(DateUtils.fromStringFormat(endTime)))))                                .must(s -> s.terms(symbolQuery()))
+                        .must(m -> m.terms(marketQuery()))
+                        .must(t -> t.terms(typeQuery()))
+                ))
+                .from(0)
+                .size(1);
+        return requestBuilder.build();
+    }
+
+    @Override
+    protected void showIndexInfo() {
+
+    }
+
+    @Override
+    public String [] symbol() {
+        return symbols;
+    }
+
+    @Override
+    public String [] market() {
+        return markets;
+    }
+
+    @Override
+    public String[] type() {
+        return types;
+    }
+
+    @Override
+    public String beginTime() {
+        return beginTime;
+    }
+
+    @Override
+    public String endTime() {
+        return endTime;
     }
 
     private TermsQuery symbolQuery() {
@@ -102,81 +254,5 @@ public class EsDepthDefaultClient extends AbstractEsDepthClient {
 
         builder.field("type").terms(s -> s.value(typeList));
         return builder.build();
-    }
-
-
-    @Override
-    protected SearchRequest makeSearchRequest(int page, int size) {
-        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
-        requestBuilder.index(indexName)
-                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
-                .query(q -> q.bool( q1 -> q1
-                                .must(m1 -> m1.range(c1 -> c1.field("created").gte(JsonData.of(longBeginTime)).lte(JsonData.of(longEndTime))))
-                                .must(s -> s.terms(symbolQuery()))
-                                .must(m -> m.terms(marketQuery()))
-                                .must(t -> t.terms(typeQuery()))
-                ))
-                .from(page == 0 ? 0 : (page - 1) * size)
-                .size(size);
-
-        return requestBuilder.build();
-    }
-
-    @Override
-    protected SearchRequest makeSearchRequestWithSearchAfter(int size) {
-        //request builder instance
-        SearchRequest.Builder requestBuilder = searchRequestBuilder();
-        requestBuilder.sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Asc)))
-                .query(q -> q.bool( q1 -> q1
-                        .must(m1 -> m1.range(c1 -> c1.field("created").gte(JsonData.of(longBeginTime)).lte(JsonData.of(longEndTime))))
-                        .must(s -> s.terms(symbolQuery()))
-                        .must(m -> m.terms(marketQuery()))
-                        .must(t -> t.terms(typeQuery()))
-                ))
-                .from(0)
-                .size(size)
-                .searchAfter(lastId);
-
-        return requestBuilder.build();
-    }
-
-    @Override
-    protected SearchRequest makeLastOfToDaySearchRequest(String type, String today) {
-        final long nextDayTime = DateUtils.nextDayZeroTime(today);
-        final long upDayTime = DateUtils.upDayZeroTime(today);
-        //request builder instance
-        SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
-        requestBuilder.index(indexName)
-                .sort(sort -> sort.field(f -> f.field("created").order(SortOrder.Desc)))
-                .query(q -> q.bool( q1 -> q1
-                        .must(m1 -> m1.range(c1 -> c1.field("created").lt(JsonData.of(nextDayTime)).gt(JsonData.of(upDayTime))))
-                        .must(s -> s.terms(symbolQuery()))
-                        .must(m -> m.terms(marketQuery()))
-                        .must(t -> t.terms(typeQuery()))
-                ))
-                .from(0)
-                .size(1);
-
-        return requestBuilder.build();
-    }
-
-    @Override
-    public String symbol() {
-        return symbol();
-    }
-
-    @Override
-    public String market() {
-        return null;
-    }
-
-    @Override
-    public String beginTime() {
-        return null;
-    }
-
-    @Override
-    public String endTime() {
-        return null;
     }
 }

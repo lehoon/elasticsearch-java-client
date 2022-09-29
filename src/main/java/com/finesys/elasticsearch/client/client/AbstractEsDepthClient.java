@@ -8,6 +8,7 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.finesys.elasticsearch.client.domain.DepthModel;
 import com.finesys.elasticsearch.client.domain.EsDataModel;
+import com.finesys.playback.EsReaderException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,6 +28,9 @@ public abstract class AbstractEsDepthClient {
     protected String indexName = null;
     //es search client
     protected ElasticsearchClient client = null;
+
+    public AbstractEsDepthClient() {
+    }
 
     public AbstractEsDepthClient(String indexName) {
         this.indexName = indexName;
@@ -82,16 +86,26 @@ public abstract class AbstractEsDepthClient {
         //根据created排序
         SearchRequest searchRequest = makeLastOfToDaySearchRequest(type, today);
         List<DepthModel> dataList = searchFromEs(searchRequest);
-        return (dataList == null || dataList.size() == 0) ? null : dataList.get(0);
+        return dataList.get(0);
+    }
+
+    public DepthModel searchLast() throws IOException {
+        //根据created排序
+        SearchRequest searchRequest = makeLastSearchRequest();
+        List<DepthModel> dataList = searchFromEs(searchRequest);
+        return dataList.get(0);
     }
 
     public abstract long count() throws IOException;
+
+    public abstract long count(final String today) throws EsReaderException;
 
     protected abstract SearchRequest makeSearchRequest(final int page,
                                               final int size);
 
     protected abstract SearchRequest makeSearchRequestWithSearchAfter(final int size);
 
+    protected abstract SearchRequest makeLastSearchRequest();
     /**
      * @param today   yyyy-mm-dd格式
      * @return
@@ -99,6 +113,7 @@ public abstract class AbstractEsDepthClient {
     protected abstract SearchRequest makeLastOfToDaySearchRequest(final String type, final String today);
 
     protected List<DepthModel> searchFromEs(final SearchRequest request) throws IOException {
+        System.out.println(request.toString());
         SearchResponse<DepthModel> response = client.search(request, DepthModel.class);
         if (response.hits().hits().size() > 0) {
             List<Hit<DepthModel>> hits = response.hits().hits();
@@ -149,13 +164,18 @@ public abstract class AbstractEsDepthClient {
         return source == null || source.length() == 0;
     }
 
+    protected abstract void showIndexInfo();
+
     protected SearchRequest.Builder searchRequestBuilder() {
         SearchRequest.Builder builder = new SearchRequest.Builder();
         builder.index(indexName);
         return builder;
     }
-    public abstract String symbol();
-    public abstract String market();
+    public abstract String[] symbol();
+    public abstract String[] market();
+    public abstract String[] type();
     public abstract String beginTime();
     public abstract String endTime();
+
+
 }

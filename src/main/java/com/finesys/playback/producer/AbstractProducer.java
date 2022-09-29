@@ -1,21 +1,17 @@
 package com.finesys.playback.producer;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import com.finesys.elasticsearch.client.client.AbstractEsDepthClient;
-import com.finesys.elasticsearch.client.domain.DepthModel;
-import com.finesys.elasticsearch.client.domain.EsDataModel;
-import com.finesys.elasticsearch.client.utils.DateUtils;
 import com.finesys.playback.EsReaderException;
 import com.finesys.playback.EsWriteException;
+import com.finesys.playback.es.client.AbstractEsDepthClient;
+import com.finesys.playback.es.domain.DepthModel;
+import com.finesys.playback.es.domain.EsDataModel;
+import com.finesys.playback.es.utils.DateUtils;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
- * <p>Title: </p>
+ * <p>Title: AbstractProducer</p>
  * <p>Description: </p>
  * <p>Copyright: CopyRight (c) 2020-2035</p>
  * <p>Company: finesys Co. LTD.</p>
@@ -40,12 +36,7 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
     public List<DepthModel> next() throws EsReaderException {
         page += 1;
         readIndex += size;
-
-        try {
-            return esDepthClient.searchPage(page, size);
-        } catch (IOException e) {
-            throw new EsReaderException(e);
-        }
+        return esDepthClient.searchPage(page, size);
     }
 
     @Override
@@ -70,11 +61,7 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
 
     @Override
     public DepthModel lastOfToday(final String type, final String today) throws EsReaderException {
-        try {
-            return esDepthClient.searchLastOfToDay(type, today);
-        } catch (IOException e) {
-            throw new EsReaderException("读取最后一条行情数据异常", e);
-        }
+        return esDepthClient.searchLastOfToDay(type, today);
     }
 
     @Override
@@ -93,6 +80,12 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
     }
 
     @Override
+    public void rewind() {
+        this.page = 0;
+        this.readIndex = 0;
+    }
+
+    @Override
     public void send(String id, String symbol, String market, String type, String time, String data) throws EsWriteException {
         DepthModel depthModel = new DepthModel();
         depthModel.setSymbol(symbol);
@@ -101,24 +94,10 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
         depthModel.setData(data);
         depthModel.setType(type);
         depthModel.setCreated(DateUtils.formatDepthDate(depthModel.getTime()));
-
-        BulkRequest.Builder builder = new BulkRequest.Builder();
-        builder.operations(op -> op
-                .index(idx -> idx
-                        .index(indexName)
-                        .document(depthModel)
-                        .id(id)));
-
-        try {
-            BulkResponse response = elasticsearchClient.bulk(builder.build());
-            if (response.errors()) {
-                throw new EsWriteException(String.format("写入行情数据失败,[%s]", response.toString()));
-            }
-        } catch (ElasticsearchException e) {
-            throw new EsWriteException("写入行情数据失败", e);
-        } catch (IOException e) {
-            throw new EsWriteException("写入行情数据失败", e);
-        }
+        EsDataModel dataModel = new EsDataModel();
+        dataModel.setId(id);
+        dataModel.setData(depthModel);
+        esDepthClient.pushData(dataModel);
     }
 
     @Override
@@ -130,11 +109,7 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
 
     @Override
     public void send(final EsDataModel dataModel) throws EsWriteException {
-        try {
-            esDepthClient.pushData(dataModel);
-        } catch (IOException e) {
-            throw new EsWriteException(e);
-        }
+        esDepthClient.pushData(dataModel);
     }
 
     @Override
@@ -147,5 +122,61 @@ public abstract class AbstractProducer implements IProducer<DepthModel> {
     @Override
     public boolean init() {
         return init;
+    }
+
+    @Override
+    public long totalCount() {
+        return dataTotalCount;
+    }
+
+    @Override
+    public String[] symbols() {
+        return esDepthClient.symbol();
+    }
+
+    @Override
+    public String[] markets() {
+        return esDepthClient.market();
+    }
+
+    @Override
+    public String[] types() {
+        return esDepthClient.type();
+    }
+
+    @Override
+    public String beginTime() {
+        return esDepthClient.beginTime();
+    }
+
+    @Override
+    public String endTime() {
+        return esDepthClient.endTime();
+    }
+
+    @Override
+    public String request() {
+        StringBuilder sb = new StringBuilder(128);
+        sb.append(indexName)
+                .append(",")
+                .append(arr2String(esDepthClient.symbol()))
+                .append(arr2String(esDepthClient.market()))
+                .append(arr2String(esDepthClient.type()))
+                .append(beginTime())
+                .append(",")
+                .append(endTime());
+        return sb.toString();
+    }
+
+
+    protected String arr2String(String [] in) {
+        if (in == null || in.length == 0) return "";
+
+        StringBuilder sb = new StringBuilder(in.length * 20);
+        for (String s : in) {
+            sb.append(s).append(",");
+        }
+
+        return sb.toString();
     }
 }

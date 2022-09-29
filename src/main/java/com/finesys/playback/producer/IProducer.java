@@ -1,14 +1,15 @@
 package com.finesys.playback.producer;
 
-import com.finesys.elasticsearch.client.domain.DepthModel;
-import com.finesys.elasticsearch.client.domain.EsDataModel;
+
 import com.finesys.playback.EsReaderException;
 import com.finesys.playback.EsWriteException;
+import com.finesys.playback.es.domain.DepthModel;
+import com.finesys.playback.es.domain.EsDataModel;
 
 import java.util.List;
 
 /**
- * <p>Title: </p>
+ * <p>Title: IProducer</p>
  * <p>Description: </p>
  * <p>Copyright: CopyRight (c) 2020-2035</p>
  * <p>Company: finesys Co. LTD.</p>
@@ -21,6 +22,7 @@ public interface IProducer<T> {
     void setPage(final int page);
     void setSize(final int size);
     void setIndexName(final String indexName);
+    void rewind();
     T lastOfToday(final String type, final String today) throws EsReaderException;
     void send(String id, String symbol, String market, String type, String time, String data) throws EsWriteException;
     void send(String id, String symbol, String market, String []types, String time, String data) throws EsWriteException;
@@ -30,11 +32,13 @@ public interface IProducer<T> {
     //get
     int page();
     int size();
-    String symbol();
-    String market();
+    String [] symbols();
+    String [] markets();
+    String [] types();
     String beginTime();
     String endTime();
     String request();
     String indexName();
     boolean init();
+    long totalCount();
 }

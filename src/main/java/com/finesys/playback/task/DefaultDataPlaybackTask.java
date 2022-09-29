@@ -5,7 +5,7 @@ import com.finesys.playback.producer.IProducer;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * <p>Title: </p>
+ * <p>Title: DefaultDataPlaybackTask</p>
  * <p>Description: </p>
  * <p>Copyright: CopyRight (c) 2020-2035</p>
  * <p>Company: finesys Co. LTD.</p>
@@ -40,8 +40,11 @@ public class DefaultDataPlaybackTask implements Runnable {
             return;
         }
 
+        consumer.beforeProcess();
         while (!consumer.workDone()) {
             consumer.process();
         }
+
+        consumer.afterProcess();
     }
 }

@@ -12,8 +12,11 @@ import com.finesys.playback.producer.IProducer;
  */
 public interface IConsumer<T> {
     boolean init();
+    void beforeProcess();
+    void afterProcess();
     void producer(IProducer<T> producer);
     void process();
     boolean workDone();
+    String instanceId();
 }
 
