@@ -81,7 +81,30 @@ public class PlaybackTest {
         System.out.println("double=" + d);
     }
 
+    //测试工作日代码
+    public static void main2222(String args[]) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.YEAR, 2021);
+        calendar.set(Calendar.MONTH, 11);
+        calendar.set(Calendar.DAY_OF_MONTH, 9);
+        Date currentDate = calendar.getTime();
+
+        //获取下一个交易日期字符串
+        Date nextTradeDay = currentDate;
+        while(true) {
+            nextTradeDay = DateUtils.nextDay(nextTradeDay);
+            if (!DateUtils.isWorkDay(nextTradeDay)) break;
+        }
+
+        System.out.println(DateUtils.formatSdfDay(currentDate));
+        System.out.println(DateUtils.formatSdfDay(nextTradeDay));
+    }
+
     public static void main(String args[]) throws IOException {
+        /*
+        System.out.println("2022-02-01 00:00:00.000====" + DateUtils.fromStringFormat("2022-02-01 00:00:00.000"));
+        System.out.println("2022-02-01 23:59:59.000====" + DateUtils.fromStringFormat("2022-02-01 23:59:59.000"));
+
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(1643731200000L);
         System.out.println(calendar.get(Calendar.YEAR) + "-" +
@@ -98,17 +121,17 @@ public class PlaybackTest {
                 calendar.get(Calendar.HOUR_OF_DAY) + ":" +
                 calendar.get(Calendar.MINUTE) + ":" +
                 calendar.get(Calendar.SECOND));
-        //System.exit(1);
-
+        System.exit(1);
+        */
 
         PlaybackTest playbackTest = new PlaybackTest();
         playbackTest.init();
 
-        String symbols[] = {"000001"};
-        String markets[] = {"SZ"};
-        String types[] = {"KLine_1day"};
-        Date begineTime = DateUtils.getSdfTime("2022-02-01 00:00:00.000");
-        Date endTime = DateUtils.getSdfTime("2022-02-15 23:59:59.000");
+        String symbols[] = {"AG2112"};
+        String markets[] = {"SHFE"};
+        String types[] = {"KLine_1hour"};
+        Date begineTime = DateUtils.getSdfTime("2021-11-30 00:00:00.000");
+        Date endTime = DateUtils.getSdfTime("2021-12-15 23:59:59.000");
 
         IProducer producer = playbackTest.playBackProducer(symbols,
                 markets,
@@ -117,9 +140,9 @@ public class PlaybackTest {
                 endTime);
 
         IConsumer consumer = new BtpSendDepth2ApamaDefaultConsumer("Cl202203281506018668-1.0-zzh-20220922111836",
-                "Cl202203281506018668-1.0-zzh-20220922111836",
-                "Cl202203281506018668-1.0-zzh-20220922111836",
-                "Cl202203281506018668-1.0-zzh-20220922111836",
+                "Cl202209191359228123-1.0-zhu-20221018142852",
+                "Cl202209191359228123-1.0-zhu-20221018142852",
+                "Cl202209191359228123-1.0-zhu-20221018142852",
                 100000);
 
         ((BtpSendDepth2ApamaDefaultConsumer) consumer).setServerChannel("xxxxxxxxxxxxxxxxxxx");
@@ -139,9 +162,9 @@ public class PlaybackTest {
 
         consumer.beforeProcess();
 
-        while (!consumer.workDone()) {
-            consumer.process();
-        }
+//        while (!consumer.workDone()) {
+        consumer.process();
+//        }
 
         consumer.afterProcess();
         playbackTest.shutdown();

@@ -124,13 +124,13 @@ public class DateUtils {
 
         LocalDateTime localDateTime1 = LocalDateTime.of(calendar1.get(Calendar.YEAR),
                 calendar1.get(Calendar.MONTH) + 1,
-                calendar1.get(Calendar.DAY_OF_MONTH) + 1,
+                calendar1.get(Calendar.DAY_OF_MONTH),
                 calendar1.get(Calendar.HOUR_OF_DAY),
                 calendar1.get(Calendar.MINUTE));
 
         LocalDateTime localDateTime2 = LocalDateTime.of(calendar2.get(Calendar.YEAR),
                 calendar2.get(Calendar.MONTH) + 1,
-                calendar2.get(Calendar.DAY_OF_MONTH) + 1,
+                calendar2.get(Calendar.DAY_OF_MONTH),
                 calendar2.get(Calendar.HOUR_OF_DAY),
                 calendar2.get(Calendar.MINUTE));
         Duration duration = Duration.between(localDateTime1, localDateTime2);

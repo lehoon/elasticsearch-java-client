@@ -140,14 +140,15 @@ public abstract class AbstractEsDepthClient {
         SearchResponse<DepthModel> response = null;
         try {
             response = client.search(request, DepthModel.class);
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             throw new EsReaderException("查询行情回放数据异常", e);
         }
 
         if (response != null && response.hits().hits().size() > 0) {
             List<Hit<DepthModel>> hits = response.hits().hits();
             DepthModel lastDepth = hits.get(hits.size() - 1).source();
-            lastId = String.valueOf(lastDepth.getCreated());
+            lastId = String.valueOf(lastDepth.getCreated().getTime());
             return hits.stream().map((e) -> e.source()).collect(Collectors.toList());
         }
         return new ArrayList<DepthModel>();
